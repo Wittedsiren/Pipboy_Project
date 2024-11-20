@@ -64,22 +64,66 @@ void initialize_connections(void)
   tft.invertDisplay(1);
   tft.setRotation(3);
   tft.fillScreen(BLACK);
-
   if (!SD.begin(10)){ pipError("THERE IS NO RAM OR STORAGE INSTALLED\n PLEASE INSERT AN SD CARD FOR FURTHER ANALYSIS"); }
 }
 
 class Pipboy{  
+  private:
+    int prevLowerTab = 1;
+    int prevUpperTab = 1;
+    int preLoadedSelectionTab = 0; // if the requested tab has already been loaded and just needs to scroll you can refrence this var.
+    char specialValues[7][2] = {"2", "9", "5", "2", "4", "6", "3"};
+    // char specialDesc[7][50] = {
+    //   "Strength is a measure of your raw physical power. It affects how much you can carry, and the damage of all melee attacks.",
+    // };
+    
+    void t_loadSpecial(bool fullReset = false, int scrollY = 1){
+      // if (scrollY >= 8) {SelectionEncoder.counter = 7; return;}
+      int space = 20;
+      int selectionBoxHeight = 20;
+      tft.fillRect(0,60,sResX,sResY-90, BLACK);
+      char special[7][40] = {"Strength", 
+                              "Perception", 
+                              "Endurance", 
+                              "Charisma", 
+                              "Intelligence", 
+                              "Agility", 
+                              "Luck"};
+
+      for (int i=0;i<7;i++){
+        if ((i+1)==scrollY){
+          tft.fillRect(10, 85 + i*space - selectionBoxHeight, 200, selectionBoxHeight, GREEN);
+          showmsgXY(15, 80 + i*space, 1, special[i], BLACK, false);
+          showmsgXY(190, 80 + i*space, 1, specialValues[i], BLACK, false);
+        } else {
+          showmsgXY(15, 80 + i*space, 1, special[i], GREEN, false);
+          showmsgXY(190, 80 + i*space, 1, specialValues[i], GREEN, false);
+        }
+      }
+    };
+    int prevScrollY = 0;
+    void selectionTab(int scrollY = 1, int tabIndex = 0){
+      if (tabIndex == 0) {tabIndex = preLoadedSelectionTab;};
+      if (scrollY == prevScrollY && tabIndex == preLoadedSelectionTab) {return;}
+      if (tabIndex == 1){t_loadSpecial(tabIndex != preLoadedSelectionTab, scrollY);}
+      //should be called any time the user switches to a tab that requires the ability to scroll. Example: Inventory.
+      prevScrollY = scrollY;
+      preLoadedSelectionTab = tabIndex;
+      if (tabIndex == -1) {return;} //-1 is used when the tab selected doesnt use the SelectionEncoder
+    }
   public:
+    
     int uppertab = 1;
     int lowertab = 1;
     void startup(void){  
       int spaceBetweenOSandSpecs = 40;
       float waitBeforeScroll = 1;
       float timeForRedraw = 0.1;
-      char OS[] = "****************************** PIP_OS(R) V1.0.0.0 ******************************"; 
+      char OS[] = "********************** PIP_OS(R) V1.0.0.0 **********************"; 
       char systemInfo[] = "COPYRIGHT 2075 ROBCO(R)\nLOADER V1.1\nEXEC VERSION 41.10\n32k RAM SYSTEM\n15508 BYTES FREE\nNO HOLOTAPE FOUND\nLOAD ROM(1): DEITRIX 303";
-      showmsgXY(0,10,0,OS,GREEN,true);
-      showmsgXY(0,10+spaceBetweenOSandSpecs,1,systemInfo,GREEN,true);
+      showmsgXY(0,20,1,OS,GREEN,true);
+      delay(100);
+      showmsgXY(0,20+spaceBetweenOSandSpecs,1,systemInfo,GREEN,true);
 
       delay(waitBeforeScroll * 1000);
 
@@ -87,8 +131,9 @@ class Pipboy{
       int prevY = 0;
       for (int i = 0; i < sResY-100; i+=10){
         //Rewrite text as black (speeds up screen redraw)
-        showmsgXY(0,10-prevY,0,OS,BLACK,false);
-        showmsgXY(0,10+spaceBetweenOSandSpecs-prevY,1,systemInfo,BLACK,false);
+        // showmsgXY(0,10-prevY,0,OS,BLACK,false);
+        // showmsgXY(0,10+spaceBetweenOSandSpecs-prevY,1,systemInfo,BLACK,false);
+        tft.fillScreen(BLACK);
         showmsgXY(0,10-i,0,OS,GREEN,false);
         showmsgXY(0,10+spaceBetweenOSandSpecs-i,1,systemInfo,GREEN,false);
         prevY = i;
@@ -116,6 +161,9 @@ class Pipboy{
     void loadStat(bool fullReset = true){
       //full reset is just if you wanna reset the whole page or just after changing the lower tab
       uppertab = 1;
+      lowertab = 1;
+      selectionTab(1, -1); // since stat doesnt scroll on the first tab;
+
       if (fullReset){
         tft.fillScreen(BLACK);
         tft.fillRect(0, 25, sResX, 2, GREEN);
@@ -147,6 +195,8 @@ class Pipboy{
     };
     void loadInv(void){
       uppertab = 2;
+      lowertab = 1;
+      // switchLowerTab(); // just to makesure its at default tab
 
       tft.fillScreen(BLACK);
       tft.fillRect(0, 25, 480, 2, GREEN);
@@ -157,6 +207,8 @@ class Pipboy{
     };
     void loadData(void){
       uppertab = 3;
+      lowertab = 1;
+      // switchLowerTab(); // just to makesure its at default tab
 
       tft.fillScreen(BLACK);
       tft.fillRect(0, 25, 480, 2, GREEN);
@@ -167,6 +219,8 @@ class Pipboy{
     };
     void loadMap(void){
       uppertab = 4;
+      lowertab = 1;
+      // switchLowerTab(); // just to makesure its at default tab
 
       tft.fillScreen(BLACK);
       tft.fillRect(0, 25, 480, 2, GREEN);
@@ -177,6 +231,8 @@ class Pipboy{
     };
     void loadRadio(void){
       uppertab = 5;
+      lowertab = 1;
+      // switchLowerTab(); // just to makesure its at default tab
 
       tft.fillScreen(BLACK);
       tft.fillRect(0, 25, 480, 2, GREEN);
@@ -186,51 +242,56 @@ class Pipboy{
       showmsgXY(50, 18, 1, "STAT        INV        DATA        MAP        RADIO", GREEN, false);
     };
     void switchUpperTab(){
-      if (uppertab == 1){
-        loadStat();
-      }else if (uppertab == 2){
-        loadInv();
-      }else if (uppertab == 3){
-        loadData();
-      }else if (uppertab == 4){
-        loadMap();
-      }else{
-        loadRadio();
-      } 
-    }
+      if (prevUpperTab != uppertab) {
+        // LowerTabEncoder.counter = 1; //reset it to 1
+        if (uppertab == 1){
+          loadStat();
+        }else if (uppertab == 2){
+          loadInv();
+        }else if (uppertab == 3){
+          loadData();
+        }else if (uppertab == 4){
+          loadMap();
+        }else{
+          loadRadio();
+        } 
+        prevUpperTab = uppertab;
+      }
+    };
     void switchLowerTab(void){
+      if (lowertab == prevLowerTab) {return;} //the tab didnt change and the upper tab didnt change
+      prevLowerTab = lowertab; // switch the prev tab since it wasnt the same as before
+      // SelectionEncoder.counter = 1; //reset it to 1
+      // LowerTabEncoder.counter = 1; //reset it to 1
       if (uppertab == 1){
+        //Stat
+
         tft.fillRect(0,27,sResX,sResY-50, BLACK);
         if (lowertab == 1){
+          //Status
           loadStat(false);
+          selectionTab(1, -1);
         }else if (lowertab == 2){
+          //Special
           int xOffset = 78;
           showmsgXY(37-xOffset, 46, 1, "STATUS", MEH_GREEN, false);
           showmsgXY(115-xOffset, 46, 1, "SPECIAL", GREEN, false);
           showmsgXY(197-xOffset, 46, 1, "PERKS", MEH_GREEN, false);
-          // int prevX = 1;
-          // for (int x = 1; x <= xOffset; x++){
-          //   showmsgXY(37-x, 46, 1, "STATUS", MEH_GREEN, false);
-          //   showmsgXY(115-x, 46, 1, "SPECIAL", GREEN, false);
-          //   showmsgXY(197-x, 46, 1, "PERKS", MEH_GREEN, false);
-          //   // delay(1); //time between each refresh to move over the text
-          //   showmsgXY(37-prevX, 46, 1, "STATUS", BLACK, false);
-          //   showmsgXY(115-prevX, 46, 1, "SPECIAL", BLACK, false);
-          //   showmsgXY(197-prevX, 46, 1, "PERKS", BLACK, false);
-            
-          //   prevX = x;
-          // }
           
+          selectionTab(1, 1);     
         }else{
           int xOffset = 155;
           showmsgXY(37-xOffset, 46, 1, "STATUS", MEH_GREEN, false);
           showmsgXY(115-xOffset, 46, 1, "SPECIAL", MEH_GREEN, false);
           showmsgXY(197-xOffset, 46, 1, "PERKS", GREEN, false);
+          selectionTab(1, -1);
         }
-
-
       }
-    }
+    };
+
+    void updateSelection(int scrollY){
+      selectionTab(scrollY);
+    };
 };
 
 Pipboy pipboy;
@@ -242,11 +303,15 @@ void setup(void){
   // pipboy.switchUpperTab();
   // pipboy.loadRadio();
   pipboy.loadStat();
+  // pipboy.lowertab = 2;
+  // pipboy.switchLowerTab();
 };
 
 void loop(void){
   if (Serial.available() > 0){
-    pipboy.lowertab = Serial.parseInt();
-    pipboy.switchLowerTab();
+    // pipboy.lowertab = Serial.parseInt();
+    // pipboy.switchLowerTab();
+    // int v = Serial.parseInt();
+    // if (v > 0) {pipboy.updateSelection(v);}
   }
 };
